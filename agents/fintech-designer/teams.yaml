@@ -1,0 +1,55 @@
+pipeline: fintech-designer
+version: 1
+
+defaults:
+  model: sonnet
+  skills:
+    - active-listener
+    - mental-model
+
+teams:
+  requirements:
+    lead: requirements-gatherer
+    color: yellow
+    model: opus
+    skills:
+      - conversational-response
+    domain:
+      read: ["**/*"]
+      write: ["docs/requirements/**"]
+
+  design:
+    lead: design-lead
+    color: purple
+    skills:
+      - zero-micromanagement
+      - conversational-response
+    domain:
+      read: ["**/*"]
+      write: []
+    members:
+      - name: domain-modeler
+        skills: [verbose-worker, factual-reporter]
+        domain:
+          read: ["**/*"]
+          write: ["docs/design/**"]
+      - name: read-path-designer
+        skills: [verbose-worker, factual-reporter]
+        domain:
+          read: ["**/*"]
+          write: ["docs/design/**"]
+      - name: tech-selector
+        skills: [verbose-worker, factual-reporter]
+        domain:
+          read: ["**/*"]
+          write: ["docs/design/**"]
+      - name: compliance-architect
+        skills: [verbose-worker, factual-reporter]
+        domain:
+          read: ["**/*"]
+          write: ["docs/design/**"]
+      - name: failure-analyst
+        skills: [verbose-worker, factual-reporter]
+        domain:
+          read: ["**/*"]
+          write: ["docs/design/**"]

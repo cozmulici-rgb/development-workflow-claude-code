@@ -1,0 +1,22 @@
+{
+  "name": "development-workflow",
+  "owner": {
+    "name": "cozmulici-rgb"
+  },
+  "metadata": {
+    "description": "AI-powered development workflow pipeline for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "development-workflow",
+      "source": {
+        "source": "git",
+        "url": "https://github.com/cozmulici-rgb/development-workflow-claude-code.git",
+        "ref": "main"
+      },
+      "description": "Research, design, planning, implementation, and review agents for structured feature development",
+      "version": "1.0.0"
+    }
+  ]
+}

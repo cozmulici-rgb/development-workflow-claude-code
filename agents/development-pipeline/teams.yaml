@@ -1,0 +1,133 @@
+pipeline: development-pipeline
+version: 1
+
+defaults:
+  model: sonnet
+  skills:
+    - active-listener
+    - mental-model
+
+teams:
+  research:
+    lead: research-lead
+    color: blue
+    skills:
+      - zero-micromanagement
+      - conversational-response
+    domain:
+      read: ["**/*"]
+      write: ["docs/research/**"]
+    members:
+      - name: research-subagent-architecture
+        model: haiku
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: research-subagent-patterns
+        model: haiku
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: research-subagent-integrations
+        model: haiku
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: research-subagent-domain
+        model: haiku
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: research-subagent-api
+        model: haiku
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: research-subagent-tests
+        model: haiku
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: research-subagent-fintech-domain
+        model: sonnet
+        skills: [factual-reporter, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
+
+  design:
+    lead: design
+    color: purple
+    model: opus
+    skills:
+      - conversational-response
+    domain:
+      read: ["**/*"]
+      write: ["docs/design/**"]
+
+  plan:
+    lead: plan
+    color: green
+    skills:
+      - vertical-slice-enforcer
+      - conversational-response
+    domain:
+      read: ["**/*"]
+      write: ["docs/plan/**"]
+
+  implement:
+    lead: implement-lead
+    color: cyan
+    skills:
+      - zero-micromanagement
+      - conversational-response
+    domain:
+      read: ["**/*"]
+      write: []
+    members:
+      - name: implement-coder
+        skills: [scope-guardian, verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: ["src/**", "tests/**", "config/**"]
+      - name: reviewer-quality
+        skills: [actionable-reviewer]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: reviewer-architecture
+        skills: [actionable-reviewer]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: reviewer-security
+        skills: [actionable-reviewer]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: reviewer-plan-compliance
+        skills: [actionable-reviewer]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: reviewer-fintech-compliance
+        skills: [actionable-reviewer]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: reviewer-fintech-patterns
+        skills: [actionable-reviewer]
+        domain:
+          read: ["**/*"]
+          write: []
+      - name: tester
+        skills: [verbose-worker]
+        domain:
+          read: ["**/*"]
+          write: []
