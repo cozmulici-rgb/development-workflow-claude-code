@@ -1,0 +1,21 @@
+{
+  "name": "development-workflow",
+  "version": "1.0.0",
+  "description": "AI-powered development workflow pipeline — research, design, planning, implementation, and review agents for structured feature development.",
+  "author": {
+    "name": "cozmulici-rgb"
+  },
+  "repository": "https://github.com/cozmulici-rgb/development-workflow-claude-code",
+  "homepage": "https://github.com/cozmulici-rgb/development-workflow-claude-code",
+  "license": "MIT",
+  "keywords": [
+    "development-workflow",
+    "agents",
+    "pipeline",
+    "code-review",
+    "fintech",
+    "planning",
+    "research",
+    "tdd"
+  ]
+}
