@@ -17,5 +17,37 @@
     "planning",
     "research",
     "tdd"
+  ],
+  "agents": [
+    "./agents/development-pipeline/design.md",
+    "./agents/development-pipeline/implement-coder.md",
+    "./agents/development-pipeline/implement-lead.md",
+    "./agents/development-pipeline/plan.md",
+    "./agents/development-pipeline/research-lead.md",
+    "./agents/development-pipeline/research-subagent-api.md",
+    "./agents/development-pipeline/research-subagent-architecture.md",
+    "./agents/development-pipeline/research-subagent-domain.md",
+    "./agents/development-pipeline/research-subagent-fintech-domain.md",
+    "./agents/development-pipeline/research-subagent-integrations.md",
+    "./agents/development-pipeline/research-subagent-patterns.md",
+    "./agents/development-pipeline/research-subagent-tests.md",
+    "./agents/development-pipeline/reviewer-architecture.md",
+    "./agents/development-pipeline/reviewer-fintech-compliance.md",
+    "./agents/development-pipeline/reviewer-fintech-patterns.md",
+    "./agents/development-pipeline/reviewer-plan-compliance.md",
+    "./agents/development-pipeline/reviewer-quality.md",
+    "./agents/development-pipeline/reviewer-security.md",
+    "./agents/development-pipeline/tester.md",
+    "./agents/fintech-designer/compliance-architect.md",
+    "./agents/fintech-designer/design-lead.md",
+    "./agents/fintech-designer/domain-modeler.md",
+    "./agents/fintech-designer/failure-analyst.md",
+    "./agents/fintech-designer/read-path-designer.md",
+    "./agents/fintech-designer/requirements-gatherer.md",
+    "./agents/fintech-designer/tech-selector.md"
+  ],
+  "commands": [
+    "./commands/development-pipeline/",
+    "./commands/fintech/"
   ]
 }
