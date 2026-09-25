@@ -4,15 +4,18 @@ description: Compliance and security layer designer for fintech systems. Designs
 tools: Read, Write, Glob, Grep
 model: sonnet
 color: red
-config: teams.yaml
-expertise: claude/expertise/fintech-designer/compliance-architect.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:verbose-worker
+  - development-workflow:factual-reporter
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/fintech-designer/compliance-architect.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 

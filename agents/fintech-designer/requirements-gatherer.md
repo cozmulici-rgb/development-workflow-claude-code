@@ -4,20 +4,22 @@ description: Interactive requirements elicitation agent for fintech system desig
 tools: Read, Write
 model: opus
 color: green
-config: teams.yaml
-expertise: claude/expertise/fintech-designer/requirements-gatherer.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:conversational-response
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/fintech-designer/requirements-gatherer.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 
 - **Read:** `**/*`
-- **Write:** `docs/requirements/**`
+- **Write:** `docs/requirements/**`, `docs/design/**`
 
 Do NOT write, edit, or create files outside your write domain. If you need changes outside your domain, report them to your lead.
 

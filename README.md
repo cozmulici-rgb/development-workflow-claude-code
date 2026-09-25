@@ -37,10 +37,11 @@ Both pipelines share the same [shared skill library](#shared-skills) and [domain
 ## Install
 
 ```bash
-claude plugin install https://github.com/cozmulici-rgb/development-workflow-claude-code.git
+claude plugin marketplace add cozmulici-rgb/development-workflow-claude-code
+claude plugin install development-workflow@development-workflow
 ```
 
-That's it. All slash commands become available immediately in your Claude Code session.
+All skills become available immediately in your Claude Code session.
 
 ---
 
@@ -51,7 +52,7 @@ A 4-phase agentic pipeline for implementing any feature. Research and design hap
 ### How It Works
 
 ```
-/development-pipeline/research
+/development-workflow:research
          │
          ▼
 ┌──────────────────────────────────────────────────────────────────┐
@@ -69,7 +70,7 @@ A 4-phase agentic pipeline for implementing any feature. Research and design hap
                        │  ✋ Human gate — approve Research Document
                        │
                        ▼
-/development-pipeline/design
+/development-workflow:design
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
@@ -89,7 +90,7 @@ A 4-phase agentic pipeline for implementing any feature. Research and design hap
                        │  ✋ Human gate — approve all design artifacts
                        │
                        ▼
-/development-pipeline/plan
+/development-workflow:plan
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
@@ -103,7 +104,7 @@ A 4-phase agentic pipeline for implementing any feature. Research and design hap
                        │  ✋ Human gate — approve implementation plan
                        │
                        ▼
-/development-pipeline/implement
+/development-workflow:implement
                        │
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
@@ -122,20 +123,20 @@ A 4-phase agentic pipeline for implementing any feature. Research and design hap
                     ✅ All phases committed
 ```
 
-### Commands
+### Skills
 
-| Command | What It Does |
+| Skill | What It Does |
 |---|---|
-| `/development-pipeline/research` | Phase A — parallel codebase scan, produces Research Document |
-| `/development-pipeline/design` | Phase B — full design artifact suite (C4, DFD, sequence, contracts, ADR) |
-| `/development-pipeline/plan` | Phase C — vertical-slice implementation plan |
-| `/development-pipeline/implement` | Phase D — code + parallel review loop + tester, phase by phase |
+| `/development-workflow:research` | Phase A — parallel codebase scan, produces Research Document |
+| `/development-workflow:design` | Phase B — full design artifact suite (C4, DFD, sequence, contracts, ADR) |
+| `/development-workflow:plan` | Phase C — vertical-slice implementation plan |
+| `/development-workflow:implement` | Phase D — code + parallel review loop + tester, phase by phase |
 
 ### Quick Start
 
 **Phase A — Research**
 ```
-/development-pipeline/research
+/development-workflow:research
 
 Ticket / feature description:
 > Add email notification when a payment fails
@@ -152,7 +153,7 @@ Constraints (optional):
 
 **Phase B — Design**
 ```
-/development-pipeline/design
+/development-workflow:design
 
 Research Document path:
 > docs/research/payment-failure-notification.md
@@ -166,7 +167,7 @@ Architecture standards (optional):
 
 **Phase C — Plan**
 ```
-/development-pipeline/plan
+/development-workflow:plan
 
 Design documents directory:
 > docs/design/payment-failure-notification/
@@ -180,7 +181,7 @@ Stack context:
 
 **Phase D — Implement**
 ```
-/development-pipeline/implement
+/development-workflow:implement
 
 Plan directory:
 > docs/plan/payment-failure-notification/
@@ -228,7 +229,7 @@ A specialized pipeline for designing fintech systems from scratch — payment pr
 ### How It Works
 
 ```
-/fintech/design
+/development-workflow:fintech-design
          │
          ▼
 ┌─────────────────────────────────────────────┐
@@ -242,7 +243,7 @@ A specialized pipeline for designing fintech systems from scratch — payment pr
                    │  ✋ Human gate — approve Requirements Document
                    │
                    ▼
-/fintech/design (continued)
+/development-workflow:fintech-design (continued)
                    │
                    ▼
 ┌─────────────────────────────────────────────┐
@@ -275,14 +276,14 @@ Plan + Implement phases reuse development-pipeline agents,
 with optional fintech specialist reviewers activated.
 ```
 
-### Commands
+### Skills
 
-| Command | What It Does |
+| Skill | What It Does |
 |---|---|
-| `/fintech/design` | Full pipeline: requirements → 5-parallel-agent design → handoff to plan |
-| `/fintech/requirements` | Requirements gathering session only |
-| `/fintech/review-compliance` | Run fintech compliance reviewer on existing code (PCI, AML/KYC, GDPR) |
-| `/fintech/review-patterns` | Run fintech patterns reviewer (double-entry, idempotency, monetary arithmetic) |
+| `/development-workflow:fintech-design` | Full pipeline: requirements → 5-parallel-agent design → handoff to plan |
+| `/development-workflow:fintech-requirements` | Requirements gathering session only |
+| `/development-workflow:fintech-review-compliance` | Run fintech compliance reviewer on existing code (PCI, AML/KYC, GDPR) |
+| `/development-workflow:fintech-review-patterns` | Run fintech patterns reviewer (double-entry, idempotency, monetary arithmetic) |
 
 ### FinTech Specialist Reviewers
 
@@ -298,13 +299,13 @@ Three specialist agents extend the development-pipeline's Phase D review when wo
 
 ## Shared Skills
 
-Both pipelines compose agent behavior from a shared skill library. Skills are injected per agent via `teams.yaml` — no agent is monolithic.
+Both pipelines compose agent behavior from a shared skill library. Skills are preloaded per agent via frontmatter `skills:` list — no agent is monolithic.
 
 | Skill | Applies To | Purpose |
 |---|---|---|
 | `zero-micromanagement` | Lead/orchestrator agents | Delegate — never execute file changes directly |
-| `active-listener` | All agents | Read context and expertise files before acting |
-| `mental-model` | All agents | Update expertise file after each session — compounds over time |
+| `active-listener` | All agents | Read memory and context before acting |
+| `mental-model` | All agents | Update agent memory after each session — compounds over time |
 | `conversational-response` | Lead/orchestrator agents | Concise, synthesized responses — no raw dumps |
 | `verbose-worker` | Worker and sub-agents | Detailed output with file paths and line numbers |
 | `factual-reporter` | Research sub-agents | Facts only — no opinions, no recommendations |
@@ -316,18 +317,17 @@ Both pipelines compose agent behavior from a shared skill library. Skills are in
 
 ## Domain Locking
 
-Write boundaries are enforced two ways, so no agent can touch files outside its designated domain:
+Write boundaries are enforced via a plugin hook, so no agent can touch files outside its designated domain:
 
-1. **Prompt-level** — each agent's boot preamble declares its allowed read/write paths
-2. **Hook-level** — `claude/hooks/domain-lock.sh` blocks `Write` and `Edit` tool calls that fall outside declared globs
+1. **Hook-level** — `hooks/hooks.json` registers a PreToolUse hook on Write/Edit that reads agent type and globs from `hooks/write-domains.json`, allowing only the agent's writes to `.claude/agent-memory/` and its declared domain paths
 
 This means the coder cannot touch design docs. Reviewers cannot patch code. Research agents cannot write anything. The pipeline stays honest even when the model wants to "help."
 
 ---
 
-## Agent Expertise
+## Agent Memory
 
-Each agent has a persistent `.md` expertise file under `claude/expertise/`. Agents read their file at boot and update it after each session — accumulating patterns, gotchas, and project-specific decisions over time. The longer you run the pipeline on a codebase, the sharper the agents get.
+Each agent has a persistent `.md` memory file at `.claude/agent-memory/development-workflow-<agent>/MEMORY.md`. Claude Code loads `MEMORY.md` into the agent at start (`memory: project`) and update it after each session (via `mental-model` skill) — accumulating patterns, gotchas, and project-specific decisions over time. The longer you run the pipeline on a codebase, the sharper the agents get.
 
 ---
 

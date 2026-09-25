@@ -4,15 +4,18 @@ description: Coder Agent for Phase D of the development pipeline. Writes product
 tools: Read, Write, Edit, Glob, Grep, Bash, TodoWrite
 model: sonnet
 color: yellow
-config: teams.yaml
-expertise: claude/expertise/development-pipeline/implement-coder.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:scope-guardian
+  - development-workflow:verbose-worker
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/development-pipeline/implement-coder.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 

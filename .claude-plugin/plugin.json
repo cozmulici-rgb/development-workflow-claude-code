@@ -45,9 +45,5 @@
     "./agents/fintech-designer/read-path-designer.md",
     "./agents/fintech-designer/requirements-gatherer.md",
     "./agents/fintech-designer/tech-selector.md"
-  ],
-  "commands": [
-    "./commands/development-pipeline/",
-    "./commands/fintech/"
   ]
 }

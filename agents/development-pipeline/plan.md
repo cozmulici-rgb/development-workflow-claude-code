@@ -4,15 +4,18 @@ description: Planner Agent for Phase C of the development pipeline. Converts app
 tools: Read, Write, Glob, Grep, Bash
 model: sonnet
 color: green
-config: teams.yaml
-expertise: claude/expertise/development-pipeline/plan.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:vertical-slice-enforcer
+  - development-workflow:conversational-response
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/development-pipeline/plan.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 

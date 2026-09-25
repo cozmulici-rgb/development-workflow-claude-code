@@ -1,18 +1,21 @@
 ---
 name: implement-lead
 description: Implementation Lead (Orchestrator) for Phase D of the development pipeline. Reads the approved plan and coordinates Coder, Reviewer, and Tester agents phase by phase. Enforces the per-phase execution loop — code → automated gates → agent reviews → fix loop → commit. Use after plan is human-approved.
-tools: Task, Read, Write, Glob, Grep, Bash, TodoWrite
+tools: Agent, Read, Write, Glob, Grep, Bash, TodoWrite
 model: sonnet
 color: orange
-config: teams.yaml
-expertise: claude/expertise/development-pipeline/implement-lead.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:zero-micromanagement
+  - development-workflow:conversational-response
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/development-pipeline/implement-lead.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 
@@ -75,7 +78,7 @@ Phase context for Coder:
 
 ### Step 1b — Delegate to Coder Agent
 
-Invoke `implement-coder` via Task tool with the context pack.
+Invoke `development-workflow:implement-coder` via the Agent tool with the context pack.
 
 The Coder must:
 - Implement exactly what the phase plan specifies
@@ -105,16 +108,16 @@ If any automated gate fails:
 
 When automated gates pass, invoke ALL reviewer agents in parallel (single message, multiple Task calls):
 
-- `reviewer-quality` — code quality, readability, conventions
-- `reviewer-architecture` — boundary compliance, layer separation
-- `reviewer-security` — injection, auth, secrets, unsafe defaults
-- `reviewer-plan-compliance` — "did we implement exactly what the plan says?"
-- `tester` — run tests, confirm coverage
+- `development-workflow:reviewer-quality` — code quality, readability, conventions
+- `development-workflow:reviewer-architecture` — boundary compliance, layer separation
+- `development-workflow:reviewer-security` — injection, auth, secrets, unsafe defaults
+- `development-workflow:reviewer-plan-compliance` — "did we implement exactly what the plan says?"
+- `development-workflow:tester` — run tests, confirm coverage
 
 **Fintech features only** — also invoke these specialist reviewers in parallel:
 
-- `reviewer-fintech-compliance` — PCI-DSS, AML/KYC, audit trail, sanctions, GDPR
-- `reviewer-fintech-patterns` — double-entry, immutable ledger, idempotency, BCMath/DECIMAL
+- `development-workflow:reviewer-fintech-compliance` — PCI-DSS, AML/KYC, audit trail, sanctions, GDPR
+- `development-workflow:reviewer-fintech-patterns` — double-entry, immutable ledger, idempotency, BCMath/DECIMAL
 
 > How to detect fintech scope: dispatch if the feature involves payments, transactions, ledger, wallet, settlement, billing, invoicing, refunds, chargebacks, compliance, KYC, AML, PCI, or the design docs reference fintech principles.
 

@@ -21,17 +21,17 @@ don't patch code; testers don't design.
 - Plans enforce vertical slices — each phase is testable end-to-end, not layer-by-layer
 
 **Infrastructure:**
-- Team structure, models, and domain boundaries defined in `teams.yaml`
-- Composable skills injected per agent from `claude/skills/shared/`
-- Persistent mental models stored in `claude/expertise/development-pipeline/`
-- Write boundaries enforced at prompt level and by `claude/hooks/domain-lock.sh`
+- Model and skills per agent defined in agent frontmatter (`model:`, `skills:` listing `development-workflow:<skill>`)
+- Composable skills preloaded per agent from `skills/<name>/SKILL.md`
+- Persistent agent memory stored at `.claude/agent-memory/development-workflow-<agent>/MEMORY.md`
+- Write boundaries enforced via plugin hook in `hooks/hooks.json` reading `hooks/write-domains.json`
 
 ---
 
 ## Pipeline Flow
 
 ```
-  /development-pipeline/research
+  /development-workflow:research
            │
            ▼
   ┌──────────────────────────────────────────────────────────────────┐
@@ -49,7 +49,7 @@ don't patch code; testers don't design.
                            │  ✋ Human review gate — approve Research Document
                            │
                            ▼
-  /development-pipeline/design
+  /development-workflow:design
                            │
                            ▼
   ┌──────────────────────────────────────────────────────────────────┐
@@ -69,7 +69,7 @@ don't patch code; testers don't design.
                            │  ✋ Human review gate — approve all design artifacts
                            │
                            ▼
-  /development-pipeline/plan
+  /development-workflow:plan
                            │
                            ▼
   ┌──────────────────────────────────────────────────────────────────┐
@@ -82,7 +82,7 @@ don't patch code; testers don't design.
                            │  ✋ Human review gate — approve implementation plan
                            │
                            ▼
-  /development-pipeline/implement
+  /development-workflow:implement
                            │
                            ▼
   ┌──────────────────────────────────────────────────────────────────┐
@@ -156,39 +156,32 @@ Phase D — Implement
 
 ## Infrastructure
 
-### teams.yaml
+### Agent Frontmatter
 
-Defines the full team configuration per pipeline. Each agent entry specifies model override, skills list, and domain boundaries (read/write globs). Agents inherit `defaults` (model + skills) unless overridden.
+Each agent's `.md` file specifies model and skills in YAML frontmatter:
 
 ```yaml
-pipeline: development-pipeline
-defaults:
-  model: sonnet
-  skills: [active-listener, mental-model]
-teams:
-  research:
-    lead: research-lead
-    skills: [zero-micromanagement, conversational-response]
-    domain:
-      read: ["**/*"]
-      write: ["docs/research/**"]
-    members:
-      - name: research-subagent-architecture
-        model: haiku
-        skills: [factual-reporter, verbose-worker]
-        domain: { read: ["**/*"], write: [] }
-      # ... etc
+---
+model: sonnet
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:zero-micromanagement
+  - development-workflow:conversational-response
+---
 ```
 
-### Shared Skills (`claude/skills/shared/`)
+Domain boundaries (read/write globs) are centralized in `hooks/write-domains.json`, keyed by agent type `development-workflow:<agent>`.
 
-Composable prompt fragments injected into agent definitions via `teams.yaml`:
+### Shared Skills (`skills/<name>/SKILL.md`)
+
+Composable prompt fragments preloaded via agent frontmatter `skills:` list. Each skill file defines its instructions and sets `user-invocable: false`.
 
 | Skill | Applies To | Purpose |
 |-------|-----------|---------|
 | `zero-micromanagement` | Leads, orchestrators | Delegate, never execute file changes |
-| `active-listener` | All agents | Read context and expertise before acting |
-| `mental-model` | All agents | Update expertise file after each session |
+| `active-listener` | All agents | Read agent memory before acting |
+| `mental-model` | All agents | Update agent memory after each session |
 | `conversational-response` | Leads, orchestrators | Concise synthesized responses |
 | `verbose-worker` | Workers, sub-agents | Detailed output with file paths and line numbers |
 | `factual-reporter` | Research sub-agents | Facts only, no opinions or recommendations |
@@ -196,26 +189,26 @@ Composable prompt fragments injected into agent definitions via `teams.yaml`:
 | `vertical-slice-enforcer` | Plan agent | End-to-end phases, not horizontal layers |
 | `scope-guardian` | Coder | No scope creep — implement plan exactly |
 
-### Agent Expertise (`claude/expertise/development-pipeline/`)
+### Agent Memory (`.claude/agent-memory/development-workflow-<agent>/MEMORY.md`)
 
-One `.md` file per agent. Agents read their expertise file at boot and update it after each session. Compounds over time as accumulated patterns, gotchas, and decisions.
+One `.md` file per agent at `.claude/agent-memory/development-workflow-<agent>/MEMORY.md`. Claude Code loads `MEMORY.md` into the agent at start (`memory: project`) and update it after each session (via `mental-model` skill). Compounds over time as accumulated patterns, gotchas, and decisions.
 
-### Domain Locking
+### Domain Locking (`hooks/`)
 
-Write boundaries enforced two ways:
-1. **Prompt-level** — boot preamble states allowed read/write paths
-2. **Hook-level** — `claude/hooks/domain-lock.sh` blocks Write/Edit tool calls outside allowed globs
+Write boundaries enforced via plugin hook:
+1. **Hook registration** — `hooks/hooks.json` registers PreToolUse on Write/Edit/MultiEdit/NotebookEdit
+2. **Hook implementation** — `hooks/domain-lock.py` reads `agent_type` from hook input, looks up globs in `hooks/write-domains.json`, always allows writes to agent's `.claude/agent-memory/` dir, blocks other writes outside declared paths
 
 ---
 
 ## Phase Reference
 
-| Phase | Command | Lead Agent | Key Sub-Agents | Inputs | Outputs | Human Gate |
+| Phase | Skill | Lead Agent | Key Sub-Agents | Inputs | Outputs | Human Gate |
 |-------|---------|-----------|----------------|--------|---------|------------|
-| A: Research | `/development-pipeline/research` | `research-lead` | 6 sub-agents (parallel) | ticket, repo path | `docs/research/<feature>.md` | ✋ Approve research doc |
-| B: Design | `/development-pipeline/design` | `design` | — | research doc | `discussion.md` → 6 artifacts + `structure-outline.md` | ✋ Approve discussion, then approve artifacts |
-| C: Plan | `/development-pipeline/plan` | `plan` | — | design dir (incl. structure-outline) | `docs/plan/<feature>/` (N vertical-slice phases) | ✋ Approve plan |
-| D: Implement | `/development-pipeline/implement` | `implement-lead` | coder + 4 reviewers + tester | plan + design + research | committed code | ✅ Review git log / open PR |
+| A: Research | `/development-workflow:research` | `research-lead` | 6 sub-agents (parallel) | ticket, repo path | `docs/research/<feature>.md` | ✋ Approve research doc |
+| B: Design | `/development-workflow:design` | `design` | — | research doc | `discussion.md` → 6 artifacts + `structure-outline.md` | ✋ Approve discussion, then approve artifacts |
+| C: Plan | `/development-workflow:plan` | `plan` | — | design dir (incl. structure-outline) | `docs/plan/<feature>/` (N vertical-slice phases) | ✋ Approve plan |
+| D: Implement | `/development-workflow:implement` | `implement-lead` | coder + 4 reviewers + tester | plan + design + research | committed code | ✅ Review git log / open PR |
 
 ---
 
@@ -242,7 +235,7 @@ Write boundaries enforced two ways:
 ### Phase A — Research
 
 ```
-/development-pipeline/research
+/development-workflow:research
 
 Ticket / feature description:
 > Add email notification when a payment fails
@@ -260,7 +253,7 @@ Constraints (optional):
 ### Phase B — Design
 
 ```
-/development-pipeline/design
+/development-workflow:design
 
 Research Document path:
 > docs/research/payment-failure-notification.md
@@ -275,7 +268,7 @@ Architecture standards (optional):
 ### Phase C — Plan
 
 ```
-/development-pipeline/plan
+/development-workflow:plan
 
 Design documents directory:
 > docs/design/payment-failure-notification/
@@ -293,7 +286,7 @@ Code standards:
 ### Phase D — Implement
 
 ```
-/development-pipeline/implement
+/development-workflow:implement
 
 Plan directory:
 > docs/plan/payment-failure-notification/

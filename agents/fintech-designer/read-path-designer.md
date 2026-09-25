@@ -4,15 +4,18 @@ description: Read path designer for fintech systems. Categorizes queries by freq
 tools: Read, Write, Glob, Grep
 model: sonnet
 color: blue
-config: teams.yaml
-expertise: claude/expertise/fintech-designer/read-path-designer.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:verbose-worker
+  - development-workflow:factual-reporter
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/fintech-designer/read-path-designer.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 

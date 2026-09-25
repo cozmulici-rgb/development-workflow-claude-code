@@ -4,15 +4,18 @@ description: API surface sub-research agent for Phase A. Scans the codebase for 
 tools: Read, Glob, Grep, Bash
 model: haiku
 color: cyan
-config: teams.yaml
-expertise: claude/expertise/development-pipeline/research-subagent-api.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:factual-reporter
+  - development-workflow:verbose-worker
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/development-pipeline/research-subagent-api.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 

@@ -1,0 +1,53 @@
+{
+  "compliance-architect": [
+    "docs/design/**"
+  ],
+  "design": [
+    "docs/design/**"
+  ],
+  "design-lead": [
+    "docs/design/**"
+  ],
+  "domain-modeler": [
+    "docs/design/**"
+  ],
+  "failure-analyst": [
+    "docs/design/**"
+  ],
+  "implement-coder": [
+    "src/**",
+    "tests/**",
+    "config/**"
+  ],
+  "implement-lead": [],
+  "plan": [
+    "docs/plan/**"
+  ],
+  "read-path-designer": [
+    "docs/design/**"
+  ],
+  "requirements-gatherer": [
+    "docs/requirements/**",
+    "docs/design/**"
+  ],
+  "research-lead": [
+    "docs/research/**"
+  ],
+  "research-subagent-api": [],
+  "research-subagent-architecture": [],
+  "research-subagent-domain": [],
+  "research-subagent-fintech-domain": [],
+  "research-subagent-integrations": [],
+  "research-subagent-patterns": [],
+  "research-subagent-tests": [],
+  "reviewer-architecture": [],
+  "reviewer-fintech-compliance": [],
+  "reviewer-fintech-patterns": [],
+  "reviewer-plan-compliance": [],
+  "reviewer-quality": [],
+  "reviewer-security": [],
+  "tech-selector": [
+    "docs/design/**"
+  ],
+  "tester": []
+}

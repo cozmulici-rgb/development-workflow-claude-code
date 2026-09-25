@@ -18,17 +18,17 @@ operated payment processing, ledger systems, and banking infrastructure in produ
 Each phase produces artifacts reviewed by a human before the next gate opens.
 
 **Infrastructure:**
-- Team structure, models, and domain boundaries defined in `teams.yaml`
-- Composable skills injected per agent from `claude/skills/shared/`
-- Persistent mental models stored in `claude/expertise/fintech-designer/`
-- Write boundaries enforced at prompt level and by `claude/hooks/domain-lock.sh`
+- Model and skills per agent defined in agent frontmatter (`model:`, `skills:` listing `development-workflow:<skill>`)
+- Composable skills preloaded per agent from `skills/<name>/SKILL.md`
+- Persistent agent memory stored at `.claude/agent-memory/development-workflow-<agent>/MEMORY.md`
+- Write boundaries enforced via plugin hook in `hooks/hooks.json` reading `hooks/write-domains.json`
 
 ---
 
 ## Pipeline Flow
 
 ```
-  /fintech/design
+  /development-workflow:fintech-design
            │
            ▼
   ┌─────────────────────┐
@@ -90,14 +90,14 @@ Phase D — Implement  (reuses development-pipeline:implement-lead)
 
 ---
 
-## Slash Commands
+## Skills
 
-| Command | Purpose |
+| Skill | Purpose |
 |---------|---------|
-| `/fintech/design` | Full pipeline: requirements → design (5 parallel sub-agents) → handoff to plan |
-| `/fintech/requirements` | Requirements gathering only |
-| `/fintech/review-compliance` | Run fintech compliance reviewer on existing code |
-| `/fintech/review-patterns` | Run fintech patterns reviewer on existing code |
+| `/development-workflow:fintech-design` | Full pipeline: requirements → design (5 parallel sub-agents) → handoff to plan |
+| `/development-workflow:fintech-requirements` | Requirements gathering only |
+| `/development-workflow:fintech-review-compliance` | Run fintech compliance reviewer on existing code |
+| `/development-workflow:fintech-review-patterns` | Run fintech patterns reviewer on existing code |
 
 ---
 
@@ -111,17 +111,17 @@ Three specialist agents extend the existing development-pipeline:
 | `reviewer-fintech-patterns` | D (review) | Double-entry, immutable ledger, idempotency, monetary arithmetic |
 | `research-subagent-fintech-domain` | A (research) | Financial entities, ledgers, payment state machines, currency handling |
 
-These agents are defined in `claude/agents/development-pipeline/` and listed in the development-pipeline `teams.yaml`. They are activated when running the development pipeline on fintech features.
+These agents are defined in `agents/development-pipeline/` and dispatched by type `development-workflow:<agent>`. They are activated when running the development pipeline on fintech features.
 
 ---
 
 ## Infrastructure
 
-### teams.yaml
+### Agent Frontmatter
 
-Defines team configuration for this pipeline — model overrides, skills, and domain boundaries per agent. All agents inherit `defaults` (sonnet + `active-listener` + `mental-model`) unless overridden.
+Each agent's `.md` file specifies model and skills in YAML frontmatter. Domain boundaries (read/write globs) are centralized in `hooks/write-domains.json`, keyed by agent type `development-workflow:<agent>`.
 
-### Shared Skills (`claude/skills/shared/`)
+### Shared Skills (`skills/<name>/SKILL.md`)
 
 Key skills used by this pipeline:
 
@@ -134,12 +134,12 @@ Key skills used by this pipeline:
 | `active-listener` | All agents (default) |
 | `mental-model` | All agents (default) |
 
-### Agent Expertise (`claude/expertise/fintech-designer/`)
+### Agent Memory (`.claude/agent-memory/development-workflow-<agent>/MEMORY.md`)
 
-One `.md` file per agent. Read at boot, updated after each session. Accumulates domain knowledge, regulatory patterns, and project-specific decisions over time.
+One `.md` file per agent at `.claude/agent-memory/development-workflow-<agent>/MEMORY.md`. Loaded into the agent at start by Claude Code (`memory: project`), updated after each session via `mental-model` skill. Accumulates domain knowledge, regulatory patterns, and project-specific decisions over time.
 
-### Domain Locking
+### Domain Locking (`hooks/`)
 
-Write boundaries enforced two ways:
-1. **Prompt-level** — boot preamble states allowed read/write paths
-2. **Hook-level** — `claude/hooks/domain-lock.sh` blocks Write/Edit tool calls outside allowed globs
+Write boundaries enforced via plugin hook:
+1. **Hook registration** — `hooks/hooks.json` registers PreToolUse on Write/Edit/MultiEdit/NotebookEdit
+2. **Hook implementation** — `hooks/domain-lock.py` reads agent type from hook input, looks up globs in `hooks/write-domains.json`

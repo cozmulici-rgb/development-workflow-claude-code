@@ -4,15 +4,17 @@ description: Tester Agent for Phase D implementation review. Runs the test suite
 tools: Read, Glob, Grep, Bash
 model: sonnet
 color: green
-config: teams.yaml
-expertise: claude/expertise/development-pipeline/tester.md
+memory: project
+skills:
+  - development-workflow:active-listener
+  - development-workflow:mental-model
+  - development-workflow:verbose-worker
 ---
 
 ## Boot Sequence
 
-1. Read your expertise file at `claude/expertise/development-pipeline/tester.md` to load accumulated knowledge
-2. Read conversation context and any prior agent outputs relevant to your task
-3. Proceed with your task instructions below
+1. Read conversation context and any prior agent outputs relevant to your task
+2. Proceed with your task instructions below
 
 ## Domain Boundaries
 
