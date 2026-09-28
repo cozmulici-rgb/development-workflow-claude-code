@@ -154,6 +154,15 @@ Phase D — Implement
 
 ---
 
+## Gates, Lanes, and the Learning Edge
+
+Phase D passes a phase on evidence a program can evaluate, not on reviewers agreeing (`skills/pipeline-gates/`):
+
+1. **Deterministic gates first.** Build, tests, linters, then `check_scope.py`, which fails the phase if the diff touches files outside the phase plan or skips planned files.
+2. **Structured verdicts.** Reviewers and the tester end with `UNIT / VERDICT / SEVERITY / REASON / EVIDENCE / SCOPE` blocks. `merge_verdicts.py` dedupes and ranks them into the fix checklist. Only red items go back to the Coder, each limited to its `SCOPE`.
+3. **Lanes by blast radius.** The planner tags every phase `Lane: contained | wide | irreversible`. `contained` and `wide` phases commit automatically once green. `irreversible` phases (migrations, deletions, production data, money movement) wait for human approval. A missing lane counts as `irreversible`.
+4. **Learning edge.** After a phase is accepted following a correction, `implement-lead` appends an `ACCEPTED / DERIVED / EVIDENCE` rule to `docs/constraints.md`. The planner reads that file and applies each rule when it cuts the next plan.
+
 ## Infrastructure
 
 ### Agent Frontmatter

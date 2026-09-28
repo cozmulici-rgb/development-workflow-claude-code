@@ -9,6 +9,7 @@ skills:
   - development-workflow:active-listener
   - development-workflow:mental-model
   - development-workflow:verbose-worker
+  - development-workflow:actionable-reviewer
 ---
 
 ## Boot Sequence

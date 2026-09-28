@@ -13,3 +13,18 @@ Every finding must be specific enough that someone can fix it without asking que
 3. Categorize severity: Must Fix / Should Fix / Suggestion
 4. If you can't point to a specific line, it's not a finding
 5. Include a brief code snippet showing the fix when non-obvious
+
+## Machine-readable verdict
+
+End your report with one VERDICT block per finding (or a single green block if there are none). The Implementation Lead merges these with code, so keep the exact field names and one field per line:
+
+```
+UNIT      <your agent name>: <phase>
+VERDICT   red | green
+SEVERITY  critical | must-fix | should-fix | suggestion | none
+REASON    <one line>
+EVIDENCE  <file:line, test name, or command output line>
+SCOPE     <files the fix may touch — nothing else>
+```
+
+A finding without EVIDENCE is not a finding. "No errors were raised" is not evidence of green.

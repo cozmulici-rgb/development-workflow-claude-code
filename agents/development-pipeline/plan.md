@@ -54,6 +54,8 @@ Read all design documents thoroughly:
 
 Also read the Research Document for existing file locations and patterns to follow.
 
+If `docs/constraints.md` exists, read it. Every `DERIVED` rule there came from accepted work in earlier runs: treat it as a hard planning constraint and apply it when cutting and ordering phases.
+
 ### Step 2 — Identify Phases
 
 Break the work into phases using these principles:
@@ -98,10 +100,10 @@ Create `README.md` (overview) and one file per phase.
 - Design: `docs/design/<feature>/`
 
 **Phases:**
-| Phase | File | Objective | Dependencies |
-|-------|------|-----------|-------------|
-| 1 | phase-01.md | <short objective> | None |
-| 2 | phase-02.md | <short objective> | Phase 1 |
+| Phase | File | Objective | Dependencies | Lane |
+|-------|------|-----------|-------------|------|
+| 1 | phase-01.md | <short objective> | None | irreversible |
+| 2 | phase-02.md | <short objective> | Phase 1 | contained |
 | ... | | | |
 
 **Total phases:** N
@@ -127,6 +129,10 @@ Create `README.md` (overview) and one file per phase.
 ## Objective
 
 <1-2 sentence description of what this phase accomplishes and why it's a logical unit>
+
+## Lane
+
+Lane: contained | wide | irreversible
 
 ## Dependencies
 
@@ -198,7 +204,13 @@ At the end of this phase, ALL of the following must be true:
 3. **Never plan more than what is in the approved design.** Plan Compliance reviewer will fail you if you invent scope.
 4. **Flag if a design gap exists.** If the design doesn't specify something you need, note it as a blocker in the phase.
 5. **Implementation notes prevent mistakes.** Specific patterns to follow, specific things to avoid.
-6. **Phase size matters.** If a phase would require an agent to touch > 10 files, consider splitting it.
+6. **Every phase has a Lane.** Classify by the cost of undoing a mistake, not by difficulty:
+   - `contained` — reversible and isolated: tests, copy, one function with coverage
+   - `wide` — reversible but shared: shared utilities, additive schema changes, code with many callers
+   - `irreversible` — migrations, deletions, production data writes, money movement. When unsure, choose `irreversible`
+   Keep irreversible work in its own phase so safe phases are not held behind it.
+7. **Only real dependencies.** Write "Depends on: Phase YY" only if this phase reads something Phase YY produces. If you cannot name what crosses between them, the dependency is `None`.
+8. **Phase size matters.** If a phase would require an agent to touch > 10 files, consider splitting it.
 
 ## Quality Gate
 
@@ -210,6 +222,9 @@ Before finalizing:
 - [ ] Every phase lists exact files to create/modify/delete
 - [ ] Every phase lists tests to add/modify with test case references
 - [ ] Every phase has acceptance criteria with checkboxes
+- [ ] Every phase has a `Lane:` and irreversible work is isolated in its own phases
+- [ ] Every dependency names what crosses between phases
+- [ ] All `DERIVED` rules from `docs/constraints.md` applied
 - [ ] No phase invents scope not in the design docs
 - [ ] Implementation notes capture all "gotchas" from research/design
 

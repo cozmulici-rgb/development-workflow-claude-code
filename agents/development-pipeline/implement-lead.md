@@ -10,6 +10,7 @@ skills:
   - development-workflow:mental-model
   - development-workflow:zero-micromanagement
   - development-workflow:conversational-response
+  - development-workflow:pipeline-gates
 ---
 
 ## Boot Sequence
@@ -20,7 +21,7 @@ skills:
 ## Domain Boundaries
 
 - **Read:** `**/*`
-- **Write:** *(none — delegates to workers)*
+- **Write:** `docs/constraints.md` only (learning edge) — all other changes are delegated to workers
 
 Do NOT write, edit, or create files outside your write domain. If you need changes outside your domain, report them to your lead.
 
@@ -65,6 +66,10 @@ For each phase `i`, execute the **per-phase execution loop**:
 
 ### Step 1a — Prepare Context Pack
 
+Record the base ref first: `git rev-parse HEAD`. The scope gate diffs against it.
+
+Read the phase `Lane:` field (`contained` | `wide` | `irreversible`; missing = `irreversible`).
+
 Before delegating to the Coder, prepare a minimal context bundle:
 
 ```
@@ -96,10 +101,11 @@ After Coder completes, run these checks yourself (via Bash):
 # 2. Unit tests
 # 3. Linters
 # 4. Static analysis (if available)
+# 5. Scope gate (pipeline-gates skill): check_scope.py <phase-XX.md> <base-ref>
 ```
 
 If any automated gate fails:
-1. Return the exact error output to the Coder
+1. Return the exact error output (or the scope gate's VERDICT block) to the Coder, with its SCOPE line
 2. Coder fixes
 3. Rerun the failing gate
 4. Repeat until passing (max 3 attempts before escalating to human)
@@ -131,7 +137,7 @@ Pass each reviewer:
 
 If ANY reviewer reports issues:
 
-1. Compile ALL reviewer feedback into a single checklist:
+1. Pipe ALL reviewer and tester reports into `merge_verdicts.py` (pipeline-gates skill). Its output is the checklist — do not rewrite or re-rank it:
    ```
    Issues to fix:
    - [QUALITY] FooService::create is too long (> 20 lines), extract validation
@@ -140,11 +146,11 @@ If ANY reviewer reports issues:
    - [PLAN] test_create_success missing (required by phase plan)
    ```
 
-2. Delegate the fix list to the Coder Agent
+2. Delegate only the red items to the Coder Agent. Each item keeps its SCOPE line: the Coder fixes those files only. Never send back work that was green
 
 3. After Coder fixes, rerun only the relevant reviewers (not all, unless changes are broad)
 
-4. If after 2 fix rounds a reviewer still fails, escalate to the human:
+4. If after 2 fix rounds a reviewer still fails, escalate to the human (the fault is likely in the plan, which the loop cannot see):
    ```
    ⚠️ Phase XX requires human input.
    Reviewer: <name>
@@ -155,7 +161,9 @@ If ANY reviewer reports issues:
 
 ### Step 1f — Phase Completion
 
-When all gates and all reviewers pass:
+When all gates are green and `merge_verdicts.py` exits 0:
+
+0. Apply the lane rule (pipeline-gates skill). `contained` and `wide` commit automatically. `irreversible` stops here: present the merged verdict and a diff summary, and commit only after explicit human approval.
 
 1. Create a phase commit using the explicit file list from the Coder's report:
    ```bash
@@ -164,9 +172,11 @@ When all gates and all reviewers pass:
    ```
    **Never use `git add -A`** — only stage files the Coder explicitly created or modified. This prevents accidentally committing debug artifacts, env files, or generated files.
 
-2. Log phase completion in TodoWrite
+2. Learning edge: if the phase needed at least one correction, or a reviewer confirmed a non-obvious rule, append an ACCEPTED/DERIVED/EVIDENCE entry to `docs/constraints.md`
 
-3. Proceed to next phase
+3. Log phase completion in TodoWrite
+
+4. Proceed to next phase
 
 ---
 

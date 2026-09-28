@@ -19,7 +19,9 @@
     "tests/**",
     "config/**"
   ],
-  "implement-lead": [],
+  "implement-lead": [
+    "docs/constraints.md"
+  ],
   "plan": [
     "docs/plan/**"
   ],
