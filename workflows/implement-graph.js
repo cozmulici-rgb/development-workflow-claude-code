@@ -23,6 +23,8 @@ const designDir = abs(args.designDir), researchDoc = abs(args.researchDoc)
 const done = new Set(args.done || []), approved = new Set(args.approved || [])
 const byId = Object.fromEntries(graph.phases.map(p => [p.id, p]))
 
+// Models sometimes return '""' for an empty string field
+const said = t => typeof t === 'string' && !/^["'\s]*$/.test(t)
 const MAX_GATE_ATTEMPTS = 3, MAX_REVIEW_ROUNDS = 2
 const REVIEWERS = ['reviewer-quality', 'reviewer-architecture', 'reviewer-security', 'reviewer-plan-compliance', 'tester']
   .concat(args.fintech ? ['reviewer-fintech-compliance', 'reviewer-fintech-patterns'] : [])
@@ -36,7 +38,7 @@ const CODER = {
     branch: { type: 'string', description: 'git rev-parse --abbrev-ref HEAD' },
     commit: { type: 'string', description: 'sha of your commit, empty if you did not commit' },
     files: { type: 'array', items: { type: 'string' }, description: 'files you created, modified, or deleted' },
-    blocked: { type: 'string', description: 'non-empty only if you could not proceed (refused command, plan gap)' },
+    blocked: { type: 'string', description: 'why you could not proceed (refused command, plan gap); empty string "" if you completed the work' },
     derivedRule: { type: 'string', description: 'fix rounds only: a rule about the CODE or the PLAN that the fix proved, which the next plan should follow. Never about tools, harness, permissions, or environment. Empty if none.' },
   },
   required: ['worktree', 'branch', 'commit', 'files', 'blocked'],
@@ -47,7 +49,8 @@ const GATES = {
     checks: { type: 'array', items: { type: 'object', properties: {
       name: { type: 'string' }, command: { type: 'string' }, exitCode: { type: 'integer' }, tail: { type: 'string', description: 'last 20 lines of output' },
     }, required: ['name', 'command', 'exitCode', 'tail'] } },
-    refused: { type: 'string', description: 'non-empty if any command was refused by a hook or permission' },
+    refused: { type: 'boolean', description: 'true only if a hook or permission rule refused a command' },
+    refusal: { type: 'string', description: 'the refusal message, verbatim, when refused is true' },
   },
   required: ['checks', 'refused'],
 }
@@ -100,7 +103,7 @@ async function runGates(p, where, base, tag) {
 ${SAFETY}`,
     { schema: GATES, phase: 'Gates', label: `gates ${p.id}${tag}`, effort: 'low' })
   if (!g) return { ok: false, report: 'gate runner died' }
-  if (g.refused) return { ok: false, refused: g.refused, report: g.refused }
+  if (g.refused === true) return { ok: false, refused: g.refusal || 'refused (no message)', report: g.refusal || '' }
   const failed = g.checks.filter(c => c.exitCode !== 0)
   return { ok: failed.length === 0, report: failed.map(c => `${c.name} (${c.command}) exit ${c.exitCode}\n${c.tail}`).join('\n\n') }
 }
@@ -117,7 +120,7 @@ Report pwd as worktree.
 ${SAFETY}`,
     { agentType: 'development-workflow:implement-coder', schema: CODER, phase: 'Code', label: `code ${p.id}${tag}`, ...(isolate ? { isolation: 'worktree' } : {}) })
   if (!c) return { phase: p.id, verdict: 'escalated', summary: 'coder died or was skipped' }
-  if (c.blocked) return { phase: p.id, verdict: 'escalated', summary: `coder blocked: ${c.blocked}`, branch: c.branch }
+  if (said(c.blocked)) return { phase: p.id, verdict: 'escalated', summary: `coder blocked: ${c.blocked}`, branch: c.branch }
   const where = c.worktree || workdir
   const base = c.base
   const fix = async (items, why) => {
@@ -139,7 +142,7 @@ ${SAFETY}`,
     if (gates.refused) return { phase: p.id, verdict: 'escalated', summary: `command refused: ${gates.refused}`, branch: c.branch }
     if (++attempt >= MAX_GATE_ATTEMPTS) return { phase: p.id, verdict: 'escalated', summary: `gates red after ${attempt} attempts:\n${gates.report}`, branch: c.branch }
     const f = await fix(gates.report, 'failing gates')
-    if (!f || f.blocked) return { phase: p.id, verdict: 'escalated', summary: `fix blocked: ${f ? f.blocked : 'coder died'}`, branch: c.branch }
+    if (!f || said(f.blocked)) return { phase: p.id, verdict: 'escalated', summary: `fix blocked: ${f ? f.blocked : 'coder died'}`, branch: c.branch }
     c = { ...c, ...f }
   }
 
@@ -157,9 +160,9 @@ Do not edit code. ${SAFETY}`,
     if (!red.length) break
     if (rounds++ >= MAX_REVIEW_ROUNDS) return { phase: p.id, verdict: 'escalated', summary: `still red after ${MAX_REVIEW_ROUNDS} fix rounds (the plan may be wrong):\n${checklist(red)}`, branch: c.branch }
     const f = await fix(checklist(red), 'review findings')
-    if (!f || f.blocked) return { phase: p.id, verdict: 'escalated', summary: `fix blocked: ${f ? f.blocked : 'coder died'}`, branch: c.branch }
+    if (!f || said(f.blocked)) return { phase: p.id, verdict: 'escalated', summary: `fix blocked: ${f ? f.blocked : 'coder died'}`, branch: c.branch }
     c = { ...c, ...f }
-    if (f.derivedRule) derived.push({ rule: f.derivedRule, evidence: red.map(v => v.evidence).join('; ') })
+    if (said(f.derivedRule)) derived.push({ rule: f.derivedRule, evidence: red.map(v => v.evidence).join('; ') })
     gates = await runGates(p, where, base, tag)
     if (!gates.ok) return { phase: p.id, verdict: 'escalated', summary: `gates red after review fix:\n${gates.report}`, branch: c.branch }
     pending = [...new Set(red.map(v => v.unit.split(':')[0].trim()))].filter(u => REVIEWERS.includes(u))
