@@ -38,13 +38,14 @@ If it exits 1, show the error to the user and stop: the plan needs fixing (unkno
 **Graph mode — the graph output has `"parallel": true`.** Call the Workflow tool with `{scriptPath: "${CLAUDE_SKILL_DIR}/../../workflows/implement-graph.js"}` and args:
 
 ```json
-{ "graph": <plan_graph.py output>, "designDir": "...", "researchDoc": "...",
-  "workdir": "...", "standards": "...", "done": [], "approved": [] }
+{ "graph": <plan_graph.py output>, "pluginRoot": "${CLAUDE_SKILL_DIR}/../..",
+  "workdir": "<absolute repo root>", "designDir": "...", "researchDoc": "...",
+  "standards": "...", "fintech": <true if fintech scope>, "done": [], "approved": [] }
 ```
 
 Before the first run, show the user the layers and which phases are `irreversible`. Those phases do not run until the user approves them by id.
 
-The workflow runs every ready phase at once, each in its own git worktree via `implement-lead`, then merges the green branches and re-runs the tests for each layer. It returns `completed`, `failed`, `heldForApproval`, `blocked`, `constraints`.
+The workflow runs every ready phase at once, each in its own git worktree. Per phase it calls the agents directly: `implement-coder` → gate runner (build, tests, lint, scope gate) → reviewers and `tester` in parallel with structured verdicts → fixes for red units only. Then it merges the green branches and re-runs the tests for each layer. It returns `completed`, `failed`, `heldForApproval`, `blocked`, `constraints`.
 
 After it returns:
 1. Append every `constraints` entry to `docs/constraints.md` as an `ACCEPTED / DERIVED / EVIDENCE` block (learning edge).

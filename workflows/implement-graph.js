@@ -1,69 +1,179 @@
 export const meta = {
   name: 'implement-graph',
-  description: 'Run plan phases as a dependency graph: ready phases in parallel worktrees, merged per layer; irreversible phases held for human approval',
+  description: 'Run plan phases as a dependency graph: each phase runs coder → deterministic gates → parallel reviewers → fix loop; ready phases run in parallel worktrees, merged per layer; irreversible phases held for approval',
   whenToUse: 'Phase D of development-workflow when the plan graph (plan_graph.py) has independent phases',
   phases: [
-    { title: 'Implement', detail: 'implement-lead runs the per-phase loop for one phase' },
+    { title: 'Code', detail: 'implement-coder builds or fixes one phase' },
+    { title: 'Gates', detail: 'build, tests, lint, scope gate — exit codes only' },
+    { title: 'Review', detail: 'reviewers and tester in parallel, structured verdicts' },
     { title: 'Merge', detail: 'merge green phase branches, rerun tests' },
   ],
 }
 
-// args: { graph: <plan_graph.py output>, designDir, researchDoc, workdir, standards,
-//         done?: [phase ids already committed], approved?: [irreversible phase ids the human approved],
-//         dryRun?: boolean }
-const { graph, designDir, researchDoc, workdir, standards } = args
-const done = new Set(args.done || [])
-const approved = new Set(args.approved || [])
+// args: { graph: <plan_graph.py output>, workdir (absolute, required), designDir, researchDoc, standards,
+//         pluginRoot (absolute), fintech?: boolean, done?: [ids], approved?: [irreversible ids approved by the human], dryRun?: boolean }
+const { graph, workdir, standards } = args
 if (!graph || !Array.isArray(graph.phases)) throw new Error('args.graph must be the JSON output of plan_graph.py')
-
+if (!workdir || !workdir.startsWith('/')) throw new Error('args.workdir must be the absolute path of the main checkout')
+if (!args.dryRun && !args.pluginRoot) throw new Error('args.pluginRoot must be the absolute path of the development-workflow plugin')
+// Plan/design/research docs may be untracked (e.g. a global gitignore on docs/), so worktrees may not have them.
+// Always point agents at the main checkout.
+const abs = p => (!p ? p : p.startsWith('/') ? p : `${workdir}/${p}`)
+const designDir = abs(args.designDir), researchDoc = abs(args.researchDoc)
+const done = new Set(args.done || []), approved = new Set(args.approved || [])
 const byId = Object.fromEntries(graph.phases.map(p => [p.id, p]))
-const state = {} // id -> done | failed | held
-done.forEach(id => { state[id] = 'done' })
-const failed = [], held = [], constraints = [], layersRun = []
 
-const UNIT = {
+const MAX_GATE_ATTEMPTS = 3, MAX_REVIEW_ROUNDS = 2
+const REVIEWERS = ['reviewer-quality', 'reviewer-architecture', 'reviewer-security', 'reviewer-plan-compliance', 'tester']
+  .concat(args.fintech ? ['reviewer-fintech-compliance', 'reviewer-fintech-patterns'] : [])
+const SAFETY = `If a hook, permission rule, or safety check refuses a command, do not work around it — no alternate binaries (e.g. /usr/bin/git), paths, or wrappers. Stop and report the refusal verbatim.`
+
+const CODER = {
   type: 'object',
   properties: {
-    phase: { type: 'string' },
-    verdict: { type: 'string', enum: ['green', 'red', 'escalated'] },
-    branch: { type: 'string', description: 'git rev-parse --abbrev-ref HEAD after committing' },
-    commit: { type: 'string', description: 'phase commit sha, empty if not committed' },
-    summary: { type: 'string', description: 'one line: what was built, or why it stopped' },
-    constraint: {
-      type: 'object',
-      description: 'learning edge; include only if the phase needed a correction or a reviewer confirmed a non-obvious rule',
-      properties: { accepted: { type: 'string' }, derived: { type: 'string' }, evidence: { type: 'string' } },
-      required: ['accepted', 'derived', 'evidence'],
-    },
+    worktree: { type: 'string', description: 'absolute path of the checkout you worked in (pwd)' },
+    base: { type: 'string', description: 'first run only: sha of HEAD before you changed anything' },
+    branch: { type: 'string', description: 'git rev-parse --abbrev-ref HEAD' },
+    commit: { type: 'string', description: 'sha of your commit, empty if you did not commit' },
+    files: { type: 'array', items: { type: 'string' }, description: 'files you created, modified, or deleted' },
+    blocked: { type: 'string', description: 'non-empty only if you could not proceed (refused command, plan gap)' },
+    derivedRule: { type: 'string', description: 'fix rounds only: a rule about the CODE or the PLAN that the fix proved, which the next plan should follow. Never about tools, harness, permissions, or environment. Empty if none.' },
   },
-  required: ['phase', 'verdict', 'branch', 'commit', 'summary'],
+  required: ['worktree', 'branch', 'commit', 'files', 'blocked'],
+}
+const GATES = {
+  type: 'object',
+  properties: {
+    checks: { type: 'array', items: { type: 'object', properties: {
+      name: { type: 'string' }, command: { type: 'string' }, exitCode: { type: 'integer' }, tail: { type: 'string', description: 'last 20 lines of output' },
+    }, required: ['name', 'command', 'exitCode', 'tail'] } },
+    refused: { type: 'string', description: 'non-empty if any command was refused by a hook or permission' },
+  },
+  required: ['checks', 'refused'],
+}
+const VERDICTS = {
+  type: 'object',
+  properties: {
+    verdicts: { type: 'array', items: { type: 'object', properties: {
+      unit: { type: 'string' }, verdict: { type: 'string', enum: ['green', 'red'] },
+      severity: { type: 'string', enum: ['critical', 'must-fix', 'should-fix', 'suggestion', 'none'] },
+      reason: { type: 'string' }, evidence: { type: 'string', description: 'file:line, test name, or command output line' },
+      scope: { type: 'string', description: 'files the fix may touch' },
+    }, required: ['unit', 'verdict', 'severity', 'reason', 'evidence', 'scope'] } },
+  },
+  required: ['verdicts'],
 }
 const MERGE = {
   type: 'object',
   properties: {
-    merged: { type: 'array', items: { type: 'string' } },
+    merged: { type: 'array', items: { type: 'string' }, description: 'bare phase ids, e.g. "02"' },
     conflicts: { type: 'array', items: { type: 'object', properties: { phase: { type: 'string' }, detail: { type: 'string' } }, required: ['phase', 'detail'] } },
     testsGreen: { type: 'boolean' },
-    testOutput: { type: 'string', description: 'last lines of the test run' },
+    testOutput: { type: 'string' },
   },
   required: ['merged', 'conflicts', 'testsGreen'],
 }
 
-const unitPrompt = p => `Execute ONLY phase ${p.id} of the plan: ${p.file}
+const context = p => `Phase plan: ${abs(p.file)}
 Design docs: ${designDir}
 Research doc: ${researchDoc}
-Working directory: the current directory (repo root${workdir ? `; main checkout is ${workdir}` : ''})
 Standards: ${standards || 'see plan'}
-Lane: ${p.lane}${p.lane === 'irreversible' ? ' — the human has already approved this phase; commit when every gate is green' : ''}
-Completed phases already in this branch: ${Object.keys(state).filter(id => state[id] === 'done').join(', ') || 'none'}
+Plan, design and research docs live in the main checkout (${workdir}); read them from there.`
 
-Run your full per-phase loop (coder → deterministic gates incl. scope gate → reviewers → merge_verdicts → fix loop).
-Rules for this run:
-- Do not start any other phase.
-- Commit the phase on the current branch using the Coder's explicit file list.
-- Do NOT write docs/constraints.md. Return the learning-edge entry in "constraint" instead.
-- If you would escalate to a human, stop and return verdict "escalated" with the reason in summary.`
+// Code node: merge verdicts — dedupe by evidence+reason, rank by severity (replaces merge_verdicts.py here)
+const RANK = { critical: 0, 'must-fix': 1, 'should-fix': 2, suggestion: 3, none: 4 }
+function mergeVerdicts(all) {
+  const seen = new Set(), red = []
+  for (const v of all) {
+    const k = `${v.evidence}|${v.reason}`.toLowerCase()
+    if (v.verdict === 'red' && !seen.has(k)) { seen.add(k); red.push(v) }
+  }
+  return red.sort((a, b) => (RANK[a.severity] ?? 1) - (RANK[b.severity] ?? 1))
+}
+const checklist = red => red.map((v, i) => `${i + 1}. [${v.severity}] ${v.unit}: ${v.reason}\n   evidence: ${v.evidence} | fix only: ${v.scope}`).join('\n')
 
+async function runGates(p, where, base, tag) {
+  const g = await agent(
+    `cd ${where} and run these checks. Report each command's exit code and output tail. Do not edit, fix, or commit anything.
+1. Build/compile, tests, lint, static analysis per standards: ${standards || 'use the commands in the phase plan'}
+2. Scope gate: python3 "${args.pluginRoot}/skills/pipeline-gates/check_scope.py" ${abs(p.file)} ${base}
+${SAFETY}`,
+    { schema: GATES, phase: 'Gates', label: `gates ${p.id}${tag}`, effort: 'low' })
+  if (!g) return { ok: false, report: 'gate runner died' }
+  if (g.refused) return { ok: false, refused: g.refused, report: g.refused }
+  const failed = g.checks.filter(c => c.exitCode !== 0)
+  return { ok: failed.length === 0, report: failed.map(c => `${c.name} (${c.command}) exit ${c.exitCode}\n${c.tail}`).join('\n\n') }
+}
+
+async function runPhase(p, isolate) {
+  const tag = isolate ? ' (worktree)' : ''
+  let c = await agent(
+    `Implement phase ${p.id} exactly as planned.
+${context(p)}
+Lane: ${p.lane}
+Before changing anything, record "git rev-parse HEAD" as base.
+When done: run the phase's tests once, then commit ONLY the files you created/modified/deleted (explicit git add list, never -A) with message "feat: phase ${p.id} — <objective>".
+Report pwd as worktree.
+${SAFETY}`,
+    { agentType: 'development-workflow:implement-coder', schema: CODER, phase: 'Code', label: `code ${p.id}${tag}`, ...(isolate ? { isolation: 'worktree' } : {}) })
+  if (!c) return { phase: p.id, verdict: 'escalated', summary: 'coder died or was skipped' }
+  if (c.blocked) return { phase: p.id, verdict: 'escalated', summary: `coder blocked: ${c.blocked}`, branch: c.branch }
+  const where = c.worktree || workdir
+  const base = c.base
+  const fix = async (items, why) => {
+    const f = await agent(
+      `cd ${where}. Fix ONLY these items for phase ${p.id} (${why}). Touch only the files named in each item's scope. Do not change anything that is not listed.
+${items}
+${context(p)}
+Commit the fix (explicit file list) with message "fix: phase ${p.id} — ${why}". Report pwd as worktree.
+${SAFETY}`,
+      { agentType: 'development-workflow:implement-coder', schema: CODER, phase: 'Code', label: `fix ${p.id}${tag}` })
+    return f
+  }
+
+  // Deterministic gates first
+  let gates, attempt = 0
+  while (true) {
+    gates = await runGates(p, where, base, tag)
+    if (gates.ok) break
+    if (gates.refused) return { phase: p.id, verdict: 'escalated', summary: `command refused: ${gates.refused}`, branch: c.branch }
+    if (++attempt >= MAX_GATE_ATTEMPTS) return { phase: p.id, verdict: 'escalated', summary: `gates red after ${attempt} attempts:\n${gates.report}`, branch: c.branch }
+    const f = await fix(gates.report, 'failing gates')
+    if (!f || f.blocked) return { phase: p.id, verdict: 'escalated', summary: `fix blocked: ${f ? f.blocked : 'coder died'}`, branch: c.branch }
+    c = { ...c, ...f }
+  }
+
+  // Parallel reviewers; only red ones re-run after a fix. Return the unit, not the batch.
+  let pending = REVIEWERS, rounds = 0, derived = []
+  while (pending.length) {
+    const results = await parallel(pending.map(r => () => agent(
+      `Review phase ${p.id} in ${where}. Diff: git -C ${where} diff ${base}..HEAD
+${context(p)}
+Return one verdict per finding (unit = "${r}: phase ${p.id}"), or a single green verdict if there are none. Every red verdict needs evidence.
+Do not edit code. ${SAFETY}`,
+      { agentType: `development-workflow:${r}`, schema: VERDICTS, phase: 'Review', label: `${r} ${p.id}` })))
+    const all = results.flatMap((res, i) => res ? res.verdicts : [{ unit: pending[i], verdict: 'red', severity: 'must-fix', reason: 'reviewer returned no verdict', evidence: '-', scope: '-' }])
+    const red = mergeVerdicts(all)
+    if (!red.length) break
+    if (rounds++ >= MAX_REVIEW_ROUNDS) return { phase: p.id, verdict: 'escalated', summary: `still red after ${MAX_REVIEW_ROUNDS} fix rounds (the plan may be wrong):\n${checklist(red)}`, branch: c.branch }
+    const f = await fix(checklist(red), 'review findings')
+    if (!f || f.blocked) return { phase: p.id, verdict: 'escalated', summary: `fix blocked: ${f ? f.blocked : 'coder died'}`, branch: c.branch }
+    c = { ...c, ...f }
+    if (f.derivedRule) derived.push({ rule: f.derivedRule, evidence: red.map(v => v.evidence).join('; ') })
+    gates = await runGates(p, where, base, tag)
+    if (!gates.ok) return { phase: p.id, verdict: 'escalated', summary: `gates red after review fix:\n${gates.report}`, branch: c.branch }
+    pending = [...new Set(red.map(v => v.unit.split(':')[0].trim()))].filter(u => REVIEWERS.includes(u))
+    if (!pending.length) pending = REVIEWERS // unit names unrecognised: re-run all rather than skip
+  }
+  return {
+    phase: p.id, verdict: 'green', branch: c.branch, commit: c.commit, worktree: where,
+    summary: `green after ${rounds} review fix round(s)`,
+    constraints: derived.map(d => ({ phase: p.id, accepted: `phase ${p.id} accepted after correction`, derived: d.rule, evidence: d.evidence })),
+  }
+}
+
+const state = {}, failed = [], held = [], constraints = [], layersRun = []
+done.forEach(id => { state[id] = 'done' })
 let layer = 0
 while (true) {
   const ready = graph.phases.filter(p => !state[p.id] && p.deps.every(d => state[d] === 'done'))
@@ -79,41 +189,28 @@ while (true) {
   log(`Layer ${layer}: phases ${runnable.map(p => p.id).join(', ')}${held.length ? ` (held for approval: ${held.join(', ')})` : ''}`)
   if (args.dryRun) { runnable.forEach(p => { state[p.id] = 'done' }); continue }
 
-  // One phase: run in the main checkout, no merge needed. Several: isolate each in a worktree.
   const isolate = runnable.length > 1
-  const results = await parallel(runnable.map(p => () =>
-    agent(unitPrompt(p), {
-      agentType: 'development-workflow:implement-lead',
-      schema: UNIT,
-      phase: 'Implement',
-      label: `phase ${p.id} (${p.lane})`,
-      ...(isolate ? { isolation: 'worktree' } : {}),
-    })))
-
+  const results = await parallel(runnable.map(p => () => runPhase(p, isolate)))
   const green = []
   runnable.forEach((p, i) => {
     const r = results[i]
-    if (r && r.constraint) constraints.push({ phase: p.id, ...r.constraint })
-    if (r && r.verdict === 'green' && r.commit) green.push({ p, r })
-    else { state[p.id] = 'failed'; failed.push({ phase: p.id, reason: r ? `${r.verdict}: ${r.summary}` : 'agent died or was skipped' }) }
+    if (r && r.verdict === 'green') { green.push({ p, r }); constraints.push(...(r.constraints || [])) }
+    else { state[p.id] = 'failed'; failed.push({ phase: p.id, reason: r ? `${r.verdict}: ${r.summary}` : 'phase runner crashed' }) }
   })
-
   if (!isolate) { green.forEach(({ p }) => { state[p.id] = 'done' }); continue }
   if (!green.length) continue
 
   const m = await agent(
-    `In the main checkout${workdir ? ` (${workdir})` : ''}, merge these phase branches one at a time, in this order, with "git merge --no-ff <branch>":
-${green.map(({ p, r }) => `- phase ${p.id}: branch ${r.branch} (commit ${r.commit})`).join('\n')}
+    `In the main checkout ${workdir}, merge these phase branches one at a time, in this order, with "git -C ${workdir} merge --no-ff <branch>":
+${green.map(({ p, r }) => `- phase ${p.id}: branch ${r.branch}`).join('\n')}
 Report "merged" and each conflict's "phase" as the bare phase id (e.g. "02").
-If a merge conflicts, run "git merge --abort", record the conflict, and continue with the next branch. Do not resolve conflicts yourself.
-After all merges, run the test suite once (${standards || 'use the test command from the plan'}) and report the result.
-Do not edit any file.`,
+If a merge conflicts, run "git merge --abort", record the conflict, and continue. Do not resolve conflicts yourself.
+After all merges, run the test suite once in ${workdir} (${standards || 'use the plan test command'}) and report the result. Do not edit any file.
+${SAFETY}`,
     { schema: MERGE, phase: 'Merge', label: `merge layer ${layer}`, effort: 'low' })
-
   const merged = new Set(m ? m.merged : [])
-  for (const { p } of green) {
-    const hit = merged.has(p.id)
-    if (hit && m.testsGreen) state[p.id] = 'done'
+  for (const { p, r } of green) {
+    if (merged.has(p.id) && m.testsGreen) state[p.id] = 'done'
     else {
       state[p.id] = 'failed'
       const c = m && m.conflicts.find(c => c.phase === p.id)
@@ -128,7 +225,7 @@ return {
   completed: graph.phases.filter(p => state[p.id] === 'done').map(p => p.id),
   layers: layersRun,
   failed,
-  heldForApproval: held.map(id => ({ phase: id, file: byId[id].file })),
+  heldForApproval: held.map(id => ({ phase: id, file: abs(byId[id].file) })),
   blocked,
   constraints,
 }

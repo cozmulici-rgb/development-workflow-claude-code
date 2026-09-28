@@ -221,3 +221,4 @@ Escalate to human when:
 - A plan gap is discovered (something needed but not in plan)
 - A design contradiction is discovered
 - Security reviewer finds a critical issue that requires design-level change
+- A hook, permission rule, or safety check refuses a command. Never work around it (no alternate binaries, paths, or wrappers) — report the refusal verbatim

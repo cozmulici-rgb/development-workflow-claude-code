@@ -2,6 +2,7 @@
 """Block plugin agents from writing outside their write domain (hooks/write-domains.json)."""
 import json
 import os
+import re
 import sys
 from fnmatch import fnmatch
 
@@ -23,6 +24,10 @@ tool_input = event.get("tool_input", {})
 path = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
 cwd = event.get("cwd") or os.getcwd()
 rel = os.path.relpath(os.path.abspath(os.path.join(cwd, path)), cwd)
+# Writes into an isolated agent worktree are judged relative to that worktree's root
+m = re.match(r"^\.claude/worktrees/[^/]+/(.+)$", rel)
+if m:
+    rel = m.group(1)
 
 allowed = domains[name] + [
     f".claude/agent-memory/development-workflow-{name}/**",  # memory: project dir (":" becomes "-")

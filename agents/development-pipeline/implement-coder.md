@@ -173,3 +173,4 @@ Result: 8 passed, 0 failed
 - Do not use Bash for file operations (`sed`, `awk`, `python3 -c`, `echo >`)
 - Do not add TODO comments to production code and leave them
 - Do not skip writing tests because "they'll be added later"
+- If a hook, permission rule, or safety check refuses a command, never work around it (no alternate binaries, paths, or wrappers). Stop and report the refusal verbatim

@@ -45,4 +45,4 @@ DERIVED    <rule the next plan must follow>
 EVIDENCE   <file:line or commit>
 ```
 
-The rule lands in the planner's brief, not in a worker's instructions. Skip entries that only restate the plan.
+The rule lands in the planner's brief, not in a worker's instructions. Skip entries that only restate the plan. Only rules about the code or the plan belong here — never notes about tools, harness, permissions, or environment.
