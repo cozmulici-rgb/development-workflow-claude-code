@@ -305,6 +305,7 @@ Phase D passes a phase on evidence a program can evaluate, not on reviewers agre
 2. **Structured verdicts.** Reviewers and the tester end with `UNIT / VERDICT / SEVERITY / REASON / EVIDENCE / SCOPE` blocks. `merge_verdicts.py` dedupes and ranks them into the fix checklist. Only red items go back to the Coder, each limited to its `SCOPE`.
 3. **Lanes by blast radius.** The planner tags every phase `Lane: contained | wide | irreversible`. `contained` and `wide` phases commit automatically once green. `irreversible` phases (migrations, deletions, production data, money movement) wait for human approval. A missing lane counts as `irreversible`.
 4. **Learning edge.** After a phase is accepted following a correction, `implement-lead` appends an `ACCEPTED / DERIVED / EVIDENCE` rule to `docs/constraints.md`. The planner reads that file and applies each rule when it cuts the next plan.
+5. **Graph mode.** `/development-workflow:implement` runs `plan_graph.py` over the plan. When some phases have no dependency on each other, it runs the `workflows/implement-graph.js` workflow. Each ready phase gets its own git worktree and its own `implement-lead`. Green branches are merged and tests re-run per layer. Held (`irreversible`) or failed phases block only the phases that depend on them. When every phase depends on the previous one, `implement-lead` runs the phases in order as before.
 
 ## Shared Skills
 

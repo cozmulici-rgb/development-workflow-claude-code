@@ -35,7 +35,7 @@ import os
 plan_dir = os.path.relpath(os.path.dirname(os.path.abspath(phase))) + "/"
 changed = {
     f for f in git("diff", "--name-only", base) | git("ls-files", "--others", "--exclude-standard")
-    if not f.startswith(plan_dir) and f != "docs/constraints.md"  # pipeline artifacts, not code
+    if not f.startswith((plan_dir, ".claude/")) and f != "docs/constraints.md"  # pipeline artifacts, worktrees, agent memory
 }
 outside = sorted(changed - planned)
 untouched = sorted(planned - changed - deleted)

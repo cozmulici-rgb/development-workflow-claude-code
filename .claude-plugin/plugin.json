@@ -45,5 +45,8 @@
     "./agents/fintech-designer/read-path-designer.md",
     "./agents/fintech-designer/requirements-gatherer.md",
     "./agents/fintech-designer/tech-selector.md"
+  ],
+  "workflows": [
+    "./workflows/implement-graph.js"
   ]
 }
